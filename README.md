@@ -322,3 +322,9 @@ journalctl -u chatbot-rag -f      # log live
 - 🔧 Se cambi `EMBEDDING_MODEL`, `CHUNK_SIZE` o `CHUNK_OVERLAP` in `.env`, l'indice viene automaticamente rigenerato al prossimo avvio.
 - 🖼️ I PDF scannerizzati (immagini) non sono supportati: serve OCR, fuori scope.
 - 💾 Storico chat non persistito tra sessioni.
+
+---
+
+## 📸 Screenshot
+
+![Screenshot Chatbot RAG](https://i.ibb.co/QjTwcrcL/Screenshot-20260928-132338.png)
