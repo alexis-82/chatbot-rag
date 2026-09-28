@@ -327,4 +327,4 @@ journalctl -u chatbot-rag -f      # log live
 
 ## 📸 Screenshot
 
-![Screenshot Chatbot RAG](https://i.ibb.co/QjTwcrcL/Screenshot-20260928-132338.png)
+![Screenshot Chatbot RAG](https://i.ibb.co/JFRJv9Bc/Screenshot-20260928-142827.png)
