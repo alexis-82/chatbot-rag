@@ -167,7 +167,7 @@ sudo rm -r /usr/share/ollama
 ## 🔧 Prerequisiti
 
 - 🐍 **Python 3.10+**
-- 🦙 **Ollama** installato e in esecuzione se si usa il provider `ollama` (default). Scarica da <https://ollama.com/>.
+- 🦙 **Ollama** installato e in esecuzione se si usa il provider `ollama` (default).
 - 🔑 API key valida se si usa `anthropic` o `openai`.
 
 ---
