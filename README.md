@@ -335,6 +335,7 @@ Se pensi di usare il progetto per raccogliere e interrogare le tue guide/appunti
 - 🔧 Se cambi `EMBEDDING_MODEL`, `CHUNK_SIZE` o `CHUNK_OVERLAP` in `.env`, l'indice viene automaticamente rigenerato al prossimo avvio.
 - 🖼️ I PDF scannerizzati (immagini) non sono supportati: serve OCR, fuori scope.
 - 💾 Storico chat non persistito tra sessioni.
+- 🛡️ **Rifiuti "di sicurezza" dell'LLM**: i modelli locali più piccoli (es. Llama 8B) hanno un allineamento piuttosto rigido e ogni tanto rifiutano di rispondere quando nel contesto compaiono parole "sensibili" (`virus`, `exploit`, `bypass`, ecc.), anche se si tratta di documentazione tecnica legittima. Se il fenomeno si presenta spesso, prova modelli con allineamento più permissivo — ad esempio `mistral:7b-instruct`, `qwen2.5:7b` o varianti quantizzate come `llama3.1:8b-instruct-q5_K_M` — oppure passa a un provider cloud (`LLM_PROVIDER=anthropic` o `openai`), che generalmente segue meglio il contesto senza autocensurarsi.
 
 ---
 
