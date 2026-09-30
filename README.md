@@ -27,6 +27,7 @@ Chatbot con **Retrieval-Augmented Generation** che risponde a domande basandosi 
   - [1️⃣ nohup — una riga, resiste al logout](#1️⃣-nohup--una-riga-resiste-al-logout)
   - [2️⃣ tmux — sessione riattaccabile](#2️⃣-tmux--sessione-riattaccabile)
   - [3️⃣ systemd — autoavvio e riavvio automatico](#3️⃣-systemd--autoavvio-e-riavvio-automatico)
+- [💡 Consigli per l'uso come biblioteca personale](#-consigli-per-luso-come-biblioteca-personale)
 - [📝 Note](#-note)
 
 ---
@@ -314,6 +315,18 @@ journalctl -u chatbot-rag -f      # log live
 ---
 
 > 💡 **Consigliato**: per test rapidi il **#1 (nohup)**, per uso continuativo il **#3 (systemd)**.
+
+---
+
+## 💡 Consigli per l'uso come biblioteca personale
+
+Se pensi di usare il progetto per raccogliere e interrogare le tue guide/appunti nel tempo, un paio di suggerimenti pratici man mano che la collezione cresce:
+
+- 📂 **Organizza per sottocartelle** dentro `documents/` (il loader fa `rglob("*")`, quindi `documents/linux/`, `documents/python/`, ecc. funzionano già).
+- 🔽 **`TOP_K`**: se aggiungi decine di file, alza a `TOP_K=6` in `.env` per pescare più chunk rilevanti a ogni domanda.
+- 🧠 **Embedding più forte**: quando avrai molti documenti, `EMBEDDING_MODEL=BAAI/bge-m3` migliora sensibilmente la precisione (più pesante ma vale la pena; l'indice verrà rigenerato in automatico).
+- 💾 **Backup**: la cartella `documents/` è la tua fonte di verità; `chroma_db/` si rigenera da sola. Un `rsync` periodico dei documenti su un disco esterno o su cloud e sei al sicuro.
+- 🔒 **Contenuti sensibili**: se indicizzi documenti privati/aziendali, assicurati di avere `LLM_PROVIDER=ollama` (locale), non un provider cloud.
 
 ---
 
