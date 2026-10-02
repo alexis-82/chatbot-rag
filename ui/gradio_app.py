@@ -39,7 +39,11 @@ def build_ui(
     # Il blocco esterno del Chatbot ha overflow:auto e mostra una seconda
     # scrollbar mentre l'indicatore di "processing" sporge; i messaggi
     # scorrono comunque nel loro contenitore interno.
-    css = "#chatbot { overflow: hidden !important; }"
+    css = (
+        "#chatbot { overflow: hidden !important; }"
+        # cestino integrato in alto a destra, sostituito dal bottone "Pulisci chat"
+        "#chatbot .icon-button-wrapper.top-panel { display: none !important; }"
+    )
     with gr.Blocks(title="Chatbot RAG locale", css=css) as demo:
         gr.Markdown(f"# Chatbot RAG locale\n**Provider attivo:** `{provider_label}`")
         with gr.Row(equal_height=True):
@@ -53,6 +57,9 @@ def build_ui(
                 )
                 gr.ChatInterface(fn=_respond, type="messages", chatbot=chatbot)
             with gr.Column(scale=1, min_width=260):
+                clear_btn = gr.Button("🗑️ Pulisci chat", variant="secondary", size="lg")
+                # api_name=False: lo schema API del Chatbot manda in crash gradio_client
+                clear_btn.click(fn=lambda: [], outputs=chatbot, api_name=False)
                 gr.Markdown("### Documenti indicizzati")
                 files_box = gr.Markdown(
                     "\n".join(f"- {f}" for f in list_files_fn()) or "(nessun file)"
