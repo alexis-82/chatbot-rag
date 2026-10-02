@@ -39,8 +39,8 @@ def _match_source_in_query(query: str, sources: list[str]) -> str | None:
 def retrieve(vs: Chroma, query: str, top_k: int) -> list[Document]:
     """Retrieval ibrido.
 
-    1. Se la query nomina esplicitamente un file indicizzato (es. "nuitka",
-       "nuitka.txt"), restituisce i top-K chunk di QUEL file ordinati per
+    1. Se la query nomina esplicitamente un file indicizzato, 
+       restituisce i top-K chunk di QUEL file ordinati per
        similarità → le query "meta" sul nome del file funzionano.
     2. Altrimenti usa MMR (similarità + diversità delle fonti), così file
        piccoli non vengono soffocati da PDF grandi con molti chunk simili.

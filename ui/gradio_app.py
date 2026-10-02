@@ -36,20 +36,16 @@ def build_ui(
         )
         return summary, "\n".join(f"- {f}" for f in files) or "(nessun file)"
 
-    css = """
-    /* Nasconde la scrollbar del wrapper di ChatInterface che appare
-       durante il loading (pallini "processing…" + pulsante Stop). */
-    .gradio-container .progress-text,
-    .gradio-container [class*="progress"] { overflow: hidden !important; }
-    /* La colonna della chat non deve superare la viewport durante la
-       generazione: contiene lo scroll extra dell'indicatore di loading. */
-    #chat-col { max-height: calc(100vh - 120px); overflow: hidden; }
-    """
+    # Il blocco esterno del Chatbot ha overflow:auto e mostra una seconda
+    # scrollbar mentre l'indicatore di "processing" sporge; i messaggi
+    # scorrono comunque nel loro contenitore interno.
+    css = "#chatbot { overflow: hidden !important; }"
     with gr.Blocks(title="Chatbot RAG locale", css=css) as demo:
         gr.Markdown(f"# Chatbot RAG locale\n**Provider attivo:** `{provider_label}`")
         with gr.Row(equal_height=True):
-            with gr.Column(scale=4, elem_id="chat-col"):
+            with gr.Column(scale=4):
                 chatbot = gr.Chatbot(
+                    elem_id="chatbot",
                     type="messages",
                     height=650,
                     show_copy_button=True,
