@@ -1,0 +1,40 @@
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: chatbot-ollama
+    volumes:
+      - ollama_data:/root/.ollama
+    ports:
+      - "11434:11434"
+    restart: unless-stopped
+    # Opzionale: supporto GPU (commenta se non ne hai)
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+
+  chatbot:
+    build: .
+    container_name: chatbot-rag
+    depends_on:
+      - ollama
+    environment:
+      - LLM_PROVIDER=${LLM_PROVIDER:-ollama}
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - CHROMA_DIR=/app/index
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.2}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+    volumes:
+      - ./documents:/app/documents
+      - chatbot_index:/app/index
+    ports:
+      - "7860:7860"
+    restart: unless-stopped
+
+volumes:
+  ollama_data:
+  chatbot_index:

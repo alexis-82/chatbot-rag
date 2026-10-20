@@ -1,6 +1,6 @@
 # 🤖 Chatbot RAG locale
 
-Chatbot con **Retrieval-Augmented Generation** che risponde a domande basandosi sui documenti (PDF, TXT, MD) presenti nella cartella `documents/`. Supporta tre provider LLM: **Ollama** (locale), **Anthropic Claude**, **OpenAI**.
+Chatbot con **Retrieval-Augmented Generation** che risponde a domande basandosi sui documenti (PDF, TXT, MD e file di testo senza estensione) presenti nella cartella `documents/`. Supporta tre provider LLM: **Ollama** (locale), **Anthropic Claude**, **OpenAI**.
 
 ---
 
@@ -27,6 +27,11 @@ Chatbot con **Retrieval-Augmented Generation** che risponde a domande basandosi 
   - [1️⃣ nohup — una riga, resiste al logout](#1️⃣-nohup--una-riga-resiste-al-logout)
   - [2️⃣ tmux — sessione riattaccabile](#2️⃣-tmux--sessione-riattaccabile)
   - [3️⃣ systemd — autoavvio e riavvio automatico](#3️⃣-systemd--autoavvio-e-riavvio-automatico)
+- [🐳 Deploy con Docker Compose](#-deploy-con-docker-compose)
+  - [⚠️ Prima di iniziare: ferma Ollama locale](#️-prima-di-iniziare-ferma-ollama-locale)
+  - [▶️ Avvio](#️-avvio)
+  - [⚙️ Configurazione](#️-configurazione)
+  - [🩺 Risoluzione problemi](#-risoluzione-problemi)
 - [💡 Consigli per l'uso come biblioteca personale](#-consigli-per-luso-come-biblioteca-personale)
 - [📝 Note](#-note)
 
@@ -35,6 +40,7 @@ Chatbot con **Retrieval-Augmented Generation** che risponde a domande basandosi 
 ## ✨ Caratteristiche
 
 - 📚 Indicizzazione automatica di documenti PDF, TXT e MD
+- 🐧 Supporto ai file di testo senza estensione (tipici di Linux, es. `Dockerfile`, `appunti`)
 - 🔍 Ricerca semantica con embedding `sentence-transformers`
 - 🗂️ Citazione delle fonti (esempio file e pagina per i PDF)
 - 🔄 Re-indicizzazione on-demand dall'interfaccia
@@ -176,7 +182,9 @@ sudo rm -r /usr/share/ollama
 ## ⚙️ Setup
 
 
-📂 Metti i tuoi documenti in `documents/` (formati supportati: `.pdf`, `.txt`, `.md`).
+📂 Metti i tuoi documenti in `documents/` (formati supportati: `.pdf`, `.txt`, `.md` e file di testo senza estensione).
+
+> ℹ️ Un file senza estensione viene indicizzato solo se è testo UTF-8 (niente binari) e non è nascosto (es. `.bashrc` viene ignorato). I file con un'estensione diversa da quelle supportate (es. `nginx.conf`, `note.log`) restano esclusi anche se sono testo.
 
 ### 🦙 Provider Ollama
 
@@ -315,6 +323,104 @@ journalctl -u chatbot-rag -f      # log live
 ---
 
 > 💡 **Consigliato**: per test rapidi il **#1 (nohup)**, per uso continuativo il **#3 (systemd)**.
+
+---
+
+## 🐳 Deploy con Docker Compose
+
+> 📦 Avvia chatbot e Ollama in due container, senza installare Python o Ollama sull'host.
+
+### ⚠️ Prima di iniziare: ferma Ollama locale
+
+> 🛑 **Obbligatorio.** Il container `ollama` usa la porta **11434**, la stessa di Ollama installato sull'host. Se Ollama locale è attivo, l'avvio fallisce con `failed to bind host port 0.0.0.0:11434/tcp: address already in use`.
+
+🐧 Linux:
+
+```bash
+sudo systemctl stop ollama
+sudo systemctl disable ollama   # opzionale: evita che riparta al boot
+ss -ltn | grep 11434            # nessun output = porta libera
+```
+
+🪟 Windows (PowerShell): chiudi Ollama dalla system tray, oppure:
+
+```powershell
+Stop-Process -Name ollama* -Force
+Get-NetTCPConnection -LocalPort 11434   # errore "nessun oggetto trovato" = porta libera
+```
+
+### ▶️ Avvio
+
+```bash
+docker compose up -d --build
+docker compose exec ollama ollama pull llama3.2:latest   # solo al primo avvio
+docker compose logs -f chatbot
+```
+
+- 🌐 UI su **<http://localhost:7860>**.
+- 🔁 Finché il modello non è scaricato, il container `chatbot` si riavvia (il preflight non trova il modello): è normale.
+- 🧠 Il modello di embedding è già incluso nell'immagine, quindi al primo avvio non viene scaricato.
+- 🛑 Per fermare tutto: `docker compose down` (i volumi restano).
+
+### ⚙️ Configurazione
+
+Il compose legge queste variabili dal `.env` nella cartella del progetto:
+
+| Variabile | Default | Note |
+|---|---|---|
+| `LLM_PROVIDER` | `ollama` | `ollama`, `anthropic` o `openai` |
+| `OLLAMA_MODEL` | `llama3.2:latest` | deve corrispondere al modello scaricato con `ollama pull` |
+| `ANTHROPIC_API_KEY` | vuota | richiesta con `LLM_PROVIDER=anthropic` |
+| `OPENAI_API_KEY` | vuota | richiesta con `LLM_PROVIDER=openai` |
+
+`OLLAMA_BASE_URL` e `CHROMA_DIR` sono impostate dal compose e puntano al container `ollama` e al volume dell'indice: non vanno cambiate nel `.env`.
+
+💾 Volumi:
+
+- `./documents` → `/app/documents`: i tuoi documenti, modificabili dall'host.
+- `chatbot_index` → `/app/index`: indice ChromaDB persistente tra i riavvii.
+- `ollama_data` → `/root/.ollama`: modelli Ollama scaricati.
+
+### 🩺 Risoluzione problemi
+
+**🔌 `address already in use` sulla porta 11434**
+
+Ollama locale è ancora attivo: vedi [Prima di iniziare](#️-prima-di-iniziare-ferma-ollama-locale).
+
+**🦙 `[preflight] ERRORE: Modello Ollama '...' non trovato`**
+
+`OLLAMA_MODEL` nel `.env` non corrisponde al modello scaricato. Allinea i due, poi ricrea il container:
+
+```bash
+docker compose exec ollama ollama list            # modelli scaricati
+# correggi OLLAMA_MODEL nel .env, oppure scarica il modello richiesto:
+docker compose exec ollama ollama pull <modello>
+docker compose up -d
+```
+
+> ⚠️ Dopo aver modificato il `.env` usa `docker compose up -d`, non `restart`: `restart` non rilegge le variabili d'ambiente.
+
+**🌐 `ollama pull` fallisce con `lookup registry.ollama.ai on [fe80::1%...]:53 ... invalid argument`**
+
+Il DNS dell'host è un indirizzo IPv6 link-local (verificabile con `cat /etc/resolv.conf`), che Docker copia nei container ma che lì non funziona. Imposta DNS espliciti per Docker:
+
+```bash
+sudo cat /etc/docker/daemon.json 2>/dev/null   # se esiste, aggiungi la chiave "dns" invece di sovrascrivere
+echo '{ "dns": ["1.1.1.1", "8.8.8.8"] }' | sudo tee /etc/docker/daemon.json
+sudo systemctl restart docker
+docker compose down && docker compose up -d
+docker compose exec ollama ollama pull llama3.2:latest
+```
+
+> ℹ️ Se nella tua rete c'è un DNS interno (es. il router), puoi usarlo al posto di `1.1.1.1`.
+
+**🔒 Fedora / RHEL: documenti non letti (`Permission denied`)**
+
+SELinux blocca l'accesso del container alla cartella montata. Aggiungi `:z` al mount in `docker-compose.yml`:
+
+```yaml
+- ./documents:/app/documents:z
+```
 
 ---
 

@@ -1,0 +1,12 @@
+.git
+.gitignore
+.env
+__pycache__
+*.pyc
+.pytest_cache
+tests/
+documents/*
+!documents/.gitkeep
+index/
+*.md
+LICENSE
