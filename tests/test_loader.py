@@ -39,6 +39,34 @@ class LoaderTest(unittest.TestCase):
             self.assertEqual(docs[0].metadata["source"], "ok.txt")
             self.assertTrue(any("foo.docx" in m for m in cm.output))
 
+    def test_text_without_extension_loaded(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "appunti").write_text("guida àèì\nsenza estensione", encoding="utf-8")
+            docs = load_documents(root)
+            self.assertEqual(len(docs), 1)
+            self.assertEqual(docs[0].metadata["source"], "appunti")
+            self.assertIsNone(docs[0].metadata["page"])
+
+    def test_binary_without_extension_ignored(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "eseguibile").write_bytes(b"\x7fELF\x00\x01\x02")
+            (root / "latin1").write_bytes("caff\xe8".encode("latin-1"))
+            with self.assertLogs("rag.loader", level="WARNING") as cm:
+                docs = load_documents(root)
+            self.assertEqual(docs, [])
+            self.assertTrue(any("eseguibile" in m for m in cm.output))
+
+    def test_hidden_file_without_extension_ignored(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / ".gitkeep").write_text("", encoding="utf-8")
+            (root / ".bashrc").write_text("alias ll='ls -l'", encoding="utf-8")
+            with self.assertLogs("rag.loader", level="WARNING"):
+                docs = load_documents(root)
+            self.assertEqual(docs, [])
+
     def test_empty_txt_logs_warning(self):
         with TemporaryDirectory() as tmp:
             root = Path(tmp)

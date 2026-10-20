@@ -1,6 +1,7 @@
 """Scansione della cartella documenti e parsing PDF/TXT/MD."""
 from __future__ import annotations
 
+import codecs
 import hashlib
 import logging
 from pathlib import Path
@@ -11,6 +12,35 @@ from langchain_core.documents import Document
 log = logging.getLogger(__name__)
 
 SUPPORTED_EXTS = {".pdf", ".txt", ".md"}
+_SNIFF_BYTES = 8192
+
+
+def _looks_like_text(path: Path) -> bool:
+    """True se i primi byte sono UTF-8 valido e senza byte nulli (euristica anti-binario)."""
+    with path.open("rb") as f:
+        head = f.read(_SNIFF_BYTES)
+    if b"\x00" in head:
+        return False
+    try:
+        # se il blocco non è l'intero file, un carattere multibyte troncato in coda non è un errore
+        truncated = len(head) == _SNIFF_BYTES
+        codecs.getincrementaldecoder("utf-8")().decode(head, final=not truncated)
+    except UnicodeDecodeError:
+        return False
+    return True
+
+
+def is_supported(path: Path) -> bool:
+    """Estensione supportata, oppure file di testo senza estensione (non nascosto)."""
+    ext = path.suffix.lower()
+    if ext in SUPPORTED_EXTS:
+        return True
+    if ext or path.name.startswith("."):
+        return False
+    try:
+        return _looks_like_text(path)
+    except OSError:
+        return False
 
 
 def _file_sha1(path: Path) -> str:
@@ -69,7 +99,7 @@ def load_documents(docs_dir: Path) -> list[Document]:
     """Scansiona ricorsivamente `docs_dir` e restituisce Document con metadata standard.
 
     - `source`: nome file (non path assoluto).
-    - `page`: 1-indexed per PDF, None per txt/md.
+    - `page`: 1-indexed per PDF, None per txt/md/senza estensione.
     - `file_hash`: SHA-1 dell'intero file, uniforme su tutti i chunk dello stesso file.
     """
     docs_dir = Path(docs_dir)
@@ -77,13 +107,12 @@ def load_documents(docs_dir: Path) -> list[Document]:
     for path in sorted(docs_dir.rglob("*")):
         if not path.is_file():
             continue
-        ext = path.suffix.lower()
-        if ext not in SUPPORTED_EXTS:
-            log.warning("Estensione non supportata, ignorata: %s", path.name)
+        if not is_supported(path):
+            log.warning("Formato non supportato, ignorato: %s", path.name)
             continue
         file_hash = _file_sha1(path)
         try:
-            if ext == ".pdf":
+            if path.suffix.lower() == ".pdf":
                 all_docs.extend(_load_pdf(path, file_hash))
             else:
                 all_docs.extend(_load_text(path, file_hash))

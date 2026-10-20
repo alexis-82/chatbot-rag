@@ -11,7 +11,7 @@ from langchain_chroma import Chroma
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-from rag.loader import _file_sha1, load_documents
+from rag.loader import _file_sha1, is_supported, load_documents
 
 log = logging.getLogger(__name__)
 
@@ -163,7 +163,7 @@ def sync_from_disk(
     docs_dir = Path(docs_dir)
     on_disk: dict[str, str] = {}
     for path in sorted(docs_dir.rglob("*")):
-        if path.is_file() and path.suffix.lower() in {".pdf", ".txt", ".md"}:
+        if path.is_file() and is_supported(path):
             on_disk[path.name] = _file_sha1(path)
 
     indexed = _indexed_file_hashes(vs)

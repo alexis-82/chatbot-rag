@@ -11,7 +11,7 @@ import config
 import preflight
 from llm.factory import get_llm
 from rag.indexer import build_or_load_vectorstore, sync_from_disk
-from rag.loader import load_documents
+from rag.loader import is_supported, load_documents
 from rag.pipeline import answer
 from ui.gradio_app import build_ui
 
@@ -25,7 +25,7 @@ def _list_indexed_files(chroma_dir: Path) -> list[str]:
     return sorted(
         p.name
         for p in docs_dir.rglob("*")
-        if p.is_file() and p.suffix.lower() in {".pdf", ".txt", ".md"}
+        if p.is_file() and is_supported(p)
     )
 
 
