@@ -34,6 +34,10 @@ CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", "1000"))
 CHUNK_OVERLAP = int(os.getenv("CHUNK_OVERLAP", "150"))
 TOP_K = int(os.getenv("TOP_K", "4"))
 
+# Credenziali della pagina di login (spazi iniziali/finali della password preservati)
+APP_USERNAME = os.getenv("APP_USERNAME", "").strip()
+APP_PASSWORD = os.getenv("APP_PASSWORD", "")
+
 
 def validate() -> None:
     """Fail fast se la config è invalida. Chiamare all'avvio."""
@@ -46,6 +50,8 @@ def validate() -> None:
         _die("LLM_PROVIDER=anthropic ma ANTHROPIC_API_KEY è vuota in .env.")
     if LLM_PROVIDER == "openai" and not OPENAI_API_KEY:
         _die("LLM_PROVIDER=openai ma OPENAI_API_KEY è vuota in .env.")
+    if not APP_USERNAME or not APP_PASSWORD:
+        _die("APP_USERNAME e APP_PASSWORD sono obbligatorie in .env (credenziali di login).")
     if not DOCS_DIR.exists():
         _die(f"DOCS_DIR non esiste: {DOCS_DIR}")
 

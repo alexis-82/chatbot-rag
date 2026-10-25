@@ -27,10 +27,11 @@ Chatbot con **Retrieval-Augmented Generation** che risponde a domande basandosi 
   - [1️⃣ nohup — una riga, resiste al logout](#1️⃣-nohup--una-riga-resiste-al-logout)
   - [2️⃣ tmux — sessione riattaccabile](#2️⃣-tmux--sessione-riattaccabile)
   - [3️⃣ systemd — autoavvio e riavvio automatico](#3️⃣-systemd--autoavvio-e-riavvio-automatico)
+- [☁️ Deploy su AWS con Terraform](#️-deploy-su-aws-con-terraform)
 - [🐳 Deploy con Docker Compose](#-deploy-con-docker-compose)
+  - [⚙️ Configurazione](#️-configurazione)
   - [⚠️ Prima di iniziare: ferma Ollama locale](#️-prima-di-iniziare-ferma-ollama-locale)
   - [▶️ Avvio](#️-avvio)
-  - [⚙️ Configurazione](#️-configurazione)
   - [🩺 Risoluzione problemi](#-risoluzione-problemi)
 - [💡 Consigli per l'uso come biblioteca personale](#-consigli-per-luso-come-biblioteca-personale)
 - [📝 Note](#-note)
@@ -46,6 +47,7 @@ Chatbot con **Retrieval-Augmented Generation** che risponde a domande basandosi 
 - 🔄 Re-indicizzazione on-demand dall'interfaccia
 - 🔌 Provider LLM intercambiabile (Ollama / Anthropic / OpenAI)
 - 🖥️ UI web pronta all'uso via Gradio
+- 🔐 Pagina di login con credenziali da variabili d'ambiente
 
 ---
 
@@ -215,7 +217,18 @@ LLM_PROVIDER=openai
 OPENAI_API_KEY=sk-...
 OPENAI_MODEL=gpt-4o-mini
 ```
-##### modifica .env con il provider desiderato e (se cloud) l'API key
+### 🔐 Login
+
+L'UI è protetta da una pagina di login. Le credenziali sono **obbligatorie**: senza, l'app non parte.
+
+```env
+APP_USERNAME=admin
+APP_PASSWORD=una-password-robusta
+```
+
+Il pulsante **🚪 Esci** chiude la sessione e torna alla pagina di login.
+
+##### modifica .env con il provider desiderato, (se cloud) l'API key e le credenziali di login
 
 ---
 
@@ -326,9 +339,96 @@ journalctl -u chatbot-rag -f      # log live
 
 ---
 
+## ☁️ Deploy su AWS con Terraform
+
+La cartella `terraform/` crea un'istanza EC2 con GPU NVIDIA, Docker Compose, un Elastic IP e le regole di rete. La configurazione usa una Deep Learning AMI Ubuntu e, per impostazione predefinita, un'istanza `g4dn.xlarge`. I segreti dell'app vengono salvati in AWS Systems Manager Parameter Store come `SecureString` e letti all'avvio dal ruolo IAM dell'istanza.
+
+> 💰 L'istanza GPU e l'Elastic IP possono generare costi AWS. Verifica prezzi e quote della regione prima di applicare la configurazione; `eu-south-1` potrebbe dover essere abilitata nell'account.
+
+### Prerequisiti
+
+- Account AWS con credenziali configurate e permessi per creare EC2, rete, IAM, SSM ed Elastic IP.
+- Terraform **1.5+** e AWS CLI installati.
+- Una chiave SSH pubblica; in alternativa, lascia `ssh_allowed_cidrs` vuota e usa AWS Systems Manager Session Manager.
+
+### Configurazione e avvio
+
+```bash
+cd terraform
+cp terraform.tfvars.example terraform.tfvars
+```
+
+In PowerShell, il comando di copia equivalente è `Copy-Item terraform.tfvars.example terraform.tfvars`.
+
+Modifica `terraform.tfvars`:
+
+- Inserisci la chiave pubblica in `ssh_public_key`.
+- Imposta `app_username` e `app_password`, obbligatorie per il login.
+- Scegli il modello in `ollama_model`; con un provider cloud imposta `llm_provider` e la relativa API key.
+- Limita `app_allowed_cidrs` al tuo IP o alla rete autorizzata (ad esempio `["203.0.113.10/32"]`). Il valore di esempio apre la UI a tutti; la password di login resta comunque obbligatoria.
+- Se abiliti SSH, limita `ssh_allowed_cidrs` al tuo IP. Lascia la lista vuota per usare Session Manager.
+- Imposta `git_repo_url` se vuoi che l'istanza cloni automaticamente un repository accessibile all'avvio. Se resta vuoto, dovrai copiare il progetto sull'istanza prima di avviare il servizio.
+
+Inizializza e crea l'infrastruttura:
+
+```bash
+terraform init
+terraform validate
+terraform plan
+terraform apply
+```
+
+Conferma `apply` e consulta gli output:
+
+```bash
+terraform output
+```
+
+Apri l'URL restituito da `app_url`. Se `git_repo_url` è vuoto, accedi all'istanza tramite Session Manager o SSH, copia il progetto in `/opt/chatbot` e avvia il servizio:
+
+```bash
+sudo systemctl start chatbot
+sudo systemctl status chatbot
+```
+
+I log del bootstrap sono in `/var/log/chatbot-bootstrap.log`; per quelli dello stack usa `cd /opt/chatbot && docker compose logs -f`.
+
+> 🔐 `terraform.tfvars` contiene segreti: non committarlo né condividerlo. Anche il file di stato Terraform può contenere valori sensibili; conservalo in modo protetto. Prima di `terraform destroy`, salva i documenti e gli altri dati che vuoi conservare: l'istanza e il suo disco vengono eliminati.
+
+Per rimuovere le risorse create:
+
+```bash
+terraform destroy
+```
+
+---
+
 ## 🐳 Deploy con Docker Compose
 
 > 📦 Avvia chatbot e Ollama in due container, senza installare Python o Ollama sull'host.
+
+### ⚙️ Configurazione
+
+Prima di avviare lo stack, crea `.env` dal file [`.env.example`](./.env.example) e imposta le credenziali di login: `APP_USERNAME` e `APP_PASSWORD` sono obbligatorie anche con Docker Compose. Il compose usa i valori presenti in `.env`; i valori riportati nella tabella sono quelli del file di esempio.
+
+| Variabile | Valore di esempio | Note |
+|---|---|---|
+| `LLM_PROVIDER` | `ollama` | `ollama`, `anthropic` o `openai` |
+| `OLLAMA_MODEL` | `llama3.1:8b` | deve corrispondere al modello scaricato con `ollama pull` |
+| `ANTHROPIC_API_KEY` | vuota | richiesta con `LLM_PROVIDER=anthropic` |
+| `OPENAI_API_KEY` | vuota | richiesta con `LLM_PROVIDER=openai` |
+| `APP_USERNAME` | vuota | **obbligatoria**, username della pagina di login |
+| `APP_PASSWORD` | vuota | **obbligatoria**, password della pagina di login |
+
+`OLLAMA_BASE_URL` e `CHROMA_DIR` sono impostate dal compose e puntano al container `ollama` e al volume dell'indice: non vanno cambiate nel `.env`.
+
+💾 Volumi:
+
+- `./documents` → `/app/documents`: i tuoi documenti, modificabili dall'host.
+- `chatbot_index` → `/app/index`: indice ChromaDB persistente tra i riavvii.
+- `ollama_data` → `/root/.ollama`: modelli Ollama scaricati.
+
+Il compose configura il pass-through della GPU NVIDIA per Ollama. Su un host senza GPU NVIDIA, rimuovi o commenta il blocco `deploy.resources.reservations.devices` del servizio `ollama` in `docker-compose.yml`.
 
 ### ⚠️ Prima di iniziare: ferma Ollama locale
 
@@ -352,8 +452,9 @@ Get-NetTCPConnection -LocalPort 11434   # errore "nessun oggetto trovato" = port
 ### ▶️ Avvio
 
 ```bash
+cp .env.example .env   # poi imposta APP_USERNAME e APP_PASSWORD
 docker compose up -d --build
-docker compose exec ollama ollama pull llama3.2:latest   # solo al primo avvio
+docker compose exec ollama ollama pull llama3.1:8b        # solo al primo avvio, usa il valore di OLLAMA_MODEL
 docker compose logs -f chatbot
 ```
 
@@ -361,25 +462,6 @@ docker compose logs -f chatbot
 - 🔁 Finché il modello non è scaricato, il container `chatbot` si riavvia (il preflight non trova il modello): è normale.
 - 🧠 Il modello di embedding è già incluso nell'immagine, quindi al primo avvio non viene scaricato.
 - 🛑 Per fermare tutto: `docker compose down` (i volumi restano).
-
-### ⚙️ Configurazione
-
-Il compose legge queste variabili dal `.env` nella cartella del progetto:
-
-| Variabile | Default | Note |
-|---|---|---|
-| `LLM_PROVIDER` | `ollama` | `ollama`, `anthropic` o `openai` |
-| `OLLAMA_MODEL` | `llama3.2:latest` | deve corrispondere al modello scaricato con `ollama pull` |
-| `ANTHROPIC_API_KEY` | vuota | richiesta con `LLM_PROVIDER=anthropic` |
-| `OPENAI_API_KEY` | vuota | richiesta con `LLM_PROVIDER=openai` |
-
-`OLLAMA_BASE_URL` e `CHROMA_DIR` sono impostate dal compose e puntano al container `ollama` e al volume dell'indice: non vanno cambiate nel `.env`.
-
-💾 Volumi:
-
-- `./documents` → `/app/documents`: i tuoi documenti, modificabili dall'host.
-- `chatbot_index` → `/app/index`: indice ChromaDB persistente tra i riavvii.
-- `ollama_data` → `/root/.ollama`: modelli Ollama scaricati.
 
 ### 🩺 Risoluzione problemi
 
@@ -409,7 +491,7 @@ sudo cat /etc/docker/daemon.json 2>/dev/null   # se esiste, aggiungi la chiave "
 echo '{ "dns": ["1.1.1.1", "8.8.8.8"] }' | sudo tee /etc/docker/daemon.json
 sudo systemctl restart docker
 docker compose down && docker compose up -d
-docker compose exec ollama ollama pull llama3.2:latest
+docker compose exec ollama ollama pull llama3.1:8b
 ```
 
 > ℹ️ Se nella tua rete c'è un DNS interno (es. il router), puoi usarlo al posto di `1.1.1.1`.
@@ -450,4 +532,3 @@ Se pensi di usare il progetto per raccogliere e interrogare le tue guide/appunti
 ![Screenshot Chatbot RAG](https://i.ibb.co/R4z9m3M7/Screenshot-20260928-143508.png)
 
 ![Screenshot Chatbot RAG](https://i.ibb.co/JFRJv9Bc/Screenshot-20260928-142827.png)
-

@@ -1,0 +1,26 @@
+# Copia in terraform.tfvars e compila. terraform.tfvars NON va committato.
+
+aws_region    = "eu-south-1"
+instance_type = "g4dn.xlarge"
+
+# Contenuto di ~/.ssh/id_ed25519.pub (ssh-keygen -t ed25519 se non ce l'hai)
+ssh_public_key = "ssh-ed25519 AAAA... utente@pc"
+
+# Il tuo IP pubblico per SSH (https://checkip.amazonaws.com). Lista vuota = solo Session Manager.
+ssh_allowed_cidrs = ["1.2.3.4/32"]
+
+# UI aperta a tutti per la prova dell'azienda esterna
+app_allowed_cidrs = ["0.0.0.0/0"]
+
+# Opzionale: repo da clonare in automatico. Vuoto = copia manuale in /opt/chatbot
+git_repo_url = ""
+git_branch   = "main"
+
+llm_provider = "ollama"
+ollama_model = "llama3.1:8b"
+
+# Segreti -> SSM Parameter Store (SecureString sono le credenziali per il login)
+app_username = "demo"
+app_password = "cambia-questa-password-robusta"
+# anthropic_api_key = "sk-ant-..."
+# openai_api_key    = "sk-..."

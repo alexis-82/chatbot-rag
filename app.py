@@ -13,6 +13,7 @@ from llm.factory import get_llm
 from rag.indexer import build_or_load_vectorstore, sync_from_disk
 from rag.loader import is_supported, load_documents
 from rag.pipeline import answer
+from ui.auth import make_auth
 from ui.gradio_app import build_ui
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
@@ -79,7 +80,12 @@ def main() -> None:
 
     provider_label = f"{config.LLM_PROVIDER} / {config.active_model_name()}"
     demo = build_ui(chat_fn, reindex_fn, list_files_fn, provider_label)
-    demo.queue(default_concurrency_limit=1).launch(server_name="0.0.0.0", server_port=7860)
+    demo.queue(default_concurrency_limit=1).launch(
+        server_name="0.0.0.0",
+        server_port=7860,
+        auth=make_auth(config.APP_USERNAME, config.APP_PASSWORD),
+        auth_message="Accedi per usare il Chatbot RAG.",
+    )
 
 
 if __name__ == "__main__":

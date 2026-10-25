@@ -60,6 +60,8 @@ def build_ui(
                 clear_btn = gr.Button("🗑️ Pulisci chat", variant="secondary", size="lg")
                 # api_name=False: lo schema API del Chatbot manda in crash gradio_client
                 clear_btn.click(fn=lambda: [], outputs=chatbot, api_name=False)
+                # /logout è la route di Gradio che chiude la sessione e torna al login
+                gr.Button("🚪 Esci", variant="secondary", size="lg", link="/logout")
                 gr.Markdown("### Documenti indicizzati")
                 files_box = gr.Markdown(
                     "\n".join(f"- {f}" for f in list_files_fn()) or "(nessun file)"
